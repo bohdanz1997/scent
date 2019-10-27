@@ -1,5 +1,6 @@
 log = (require 'debug') 'scent:component'
 isArray = require 'lodash/isArray'
+identity = require 'lodash/identity'
 isString = require 'lodash/isString'
 fast = require 'fast.js'
 NoMe = require 'nome'
@@ -14,7 +15,7 @@ identities = fast.clone(require './primes').reverse()
 fieldsRx = /(?:^|\s)([a-z][a-z0-9]*(?=\s|$))/gi
 identityRx = /(?:^|\s)#([0-9]+(?=\s|$))/i
 
-Component = (name, definition) ->
+Component = (name, definition, dataResolver = identity) ->
 	# Sanity check to avoid creating new component type if one
 	# is already passed in. This allows to leave determining logic
 	# in one place.
@@ -23,11 +24,16 @@ Component = (name, definition) ->
 	unless isString name
 		throw new TypeError 'missing name of the component'
 
-	ComponentType = (data) ->
+	ComponentType = (...data) ->
 		component = this
 		unless component instanceof ComponentType
 			component = new ComponentType data
 		initializeData component, ComponentType.typeFields, data
+
+		if isFunction(dataResolver)
+			paramEntries = Object.entries(dataResolver(...data, component))
+			paramEntries.forEach(([key, val]) => component[key] = val)
+
 		return component
 
 	ComponentType.prototype = new BaseComponent name, definition
